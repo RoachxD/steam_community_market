@@ -1,5 +1,9 @@
 from .currencies import Currency
-from .exceptions import InvalidItemOrAppIDException, TooManyRequestsException
+from .exceptions import (
+    InvalidAppIDException,
+    InvalidItemOrAppIDException,
+    TooManyRequestsException,
+)
 
 from typing import Callable, Optional, Union
 
@@ -26,10 +30,11 @@ REQUEST_HEADERS = {
 
 def _market_request(
     endpoint: str,
-    payload: dict,
-    rate_limit_handler: Optional[Callable[[int], tuple[bool, float]]],
+    id: Optional[int] = None,
+    payload: Optional[dict] = None,
+    rate_limit_handler: Optional[Callable[[int], tuple[bool, float]]] = None,
 ) -> tuple[int, dict]:
-    url = f"https://steamcommunity.com/market/{endpoint}/"
+    url = f"https://steamcommunity.com/market/{endpoint}/{id or ''}"
 
     retries = 0
     while True:
@@ -50,7 +55,7 @@ def _market_request(
     return (status_code, data)
 
 
-def _request(url: str, payload: dict) -> tuple[int, dict]:
+def _request(url: str, payload: Optional[dict] = None) -> tuple[int, dict]:
     response = requests.get(url, params=payload, headers=REQUEST_HEADERS)
 
     data = None
@@ -58,6 +63,22 @@ def _request(url: str, payload: dict) -> tuple[int, dict]:
         data = response.json()
 
     return (response.status_code, data or {})
+
+
+def _request_app_filters(
+    app_id: int,
+    raise_exception: bool = True,
+    rate_limit_handler: Optional[Callable[[int], tuple[bool, float]]] = None,
+) -> dict[str, Union[dict[str, Union[dict[str, str], str]], str]]:
+    status_code, data = _market_request(
+        "appfilters", app_id, rate_limit_handler=rate_limit_handler
+    )
+
+    # 500 - Internal Server Error
+    if raise_exception and status_code == 500 and data["success"] is False:
+        raise InvalidAppIDException(app_id)
+
+    return data
 
 
 def _request_overview(
@@ -73,7 +94,9 @@ def _request_overview(
         "currency": currency.value,
     }
 
-    status_code, data = _market_request("priceoverview", payload, rate_limit_handler)
+    status_code, data = _market_request(
+        "priceoverview", None, payload, rate_limit_handler
+    )
     # 500 - Internal Server Error
     if raise_exception and status_code == 500 and data["success"] is False:
         raise InvalidItemOrAppIDException(app_id, market_hash_name)
