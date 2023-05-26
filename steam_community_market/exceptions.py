@@ -6,6 +6,28 @@ from typing import Any
 import requests
 
 
+class InvalidAppIDException(Exception):
+    """Exception raised when an app ID is considered to be invalid by the Steam Community Market.
+
+    .. versionadded:: 1.3.0
+
+    Parameters
+    ----------
+    app_id : int or AppID
+        The unsupported invalid app ID.
+    message_format : str
+        The format of the exception message. Defaults to ``App ID "{}" is considered invalid by the Steam Community Market.``.
+    """
+
+    def __init__(
+        self,
+        app_id: int or AppID,
+        message_format: str = 'App ID "{}" is considered invalid by the Steam Community Market.',
+    ) -> None:
+        message = message_format.format(app_id)
+        super().__init__(message)
+
+
 class InvalidItemOrAppIDException(Exception):
     """Exception raised when an item or app ID, or the combination of the two, is considered to be invalid by the Steam Community Market.
 
